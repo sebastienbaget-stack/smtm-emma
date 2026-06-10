@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "smtm-emma",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/airfranceseb/claude-work-perso/showmethemoney-emma/client",
+      "port": 5201
+    }
+  ]
+}

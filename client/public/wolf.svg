@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Mane / back spikes -->
+  <path d="M140 40 L155 20 L148 45" stroke-width="2.5"/>
+  <path d="M148 45 L168 28 L158 52" stroke-width="2.5"/>
+  <path d="M158 52 L178 42 L165 62" stroke-width="2.5"/>
+  <path d="M165 62 L182 58 L170 74" stroke-width="2.5"/>
+
+  <!-- Top ear left -->
+  <path d="M72 55 L58 25 L90 48" stroke-width="2.5"/>
+  <path d="M65 42 L62 30 L76 44" stroke-width="1.5"/>
+
+  <!-- Top ear right -->
+  <path d="M120 42 L128 18 L138 40" stroke-width="2.5"/>
+  <path d="M125 32 L128 22 L133 36" stroke-width="1.5"/>
+
+  <!-- Head outline top -->
+  <path d="M72 55 C78 48 95 40 120 42" stroke-width="2.5"/>
+
+  <!-- Head side - forehead to snout -->
+  <path d="M72 55 C62 68 55 82 52 96 C50 106 52 116 58 124 C64 132 72 138 80 144" stroke-width="2.5"/>
+
+  <!-- Back of head / neck -->
+  <path d="M138 40 C148 52 162 72 168 90 C172 104 168 118 158 128 C148 138 132 144 116 148 C104 152 90 152 80 144" stroke-width="2.5"/>
+
+  <!-- Snout -->
+  <path d="M58 124 C56 130 55 138 58 144 C62 150 70 154 80 144" stroke-width="2.5"/>
+
+  <!-- Snout bridge -->
+  <path d="M52 96 C48 100 46 108 48 116 C50 122 54 126 58 124" stroke-width="2"/>
+
+  <!-- Nose -->
+  <path d="M48 110 C50 106 56 106 58 110 C56 116 50 116 48 110 Z" stroke-width="2" fill="none"/>
+
+  <!-- Mouth open / fang -->
+  <path d="M56 130 L52 142 L60 138 L56 150 L64 145" stroke-width="2"/>
+  <path d="M56 130 C60 132 66 132 70 130" stroke-width="1.5"/>
+
+  <!-- Eye -->
+  <ellipse cx="84" cy="82" rx="9" ry="7" stroke-width="2"/>
+  <ellipse cx="84" cy="82" rx="4" ry="3.5" stroke-width="1.5"/>
+  <line x1="78" y1="76" x2="74" y2="72" stroke-width="1.5"/>
+  <line x1="84" y1="74" x2="82" y2="70" stroke-width="1.5"/>
+  <line x1="90" y1="76" x2="94" y2="72" stroke-width="1.5"/>
+
+  <!-- Fur texture lines on face -->
+  <path d="M65 90 C68 86 72 85 76 88" stroke-width="1.2"/>
+  <path d="M62 100 C66 95 71 94 76 97" stroke-width="1.2"/>
+  <path d="M60 112 C65 107 70 106 75 109" stroke-width="1.2"/>
+
+  <!-- Neck -->
+  <path d="M80 144 C76 154 78 164 85 170 C92 176 104 178 116 176 C128 174 140 168 148 158 C155 150 158 140 158 128" stroke-width="2.5"/>
+</svg>

@@ -1,0 +1,19 @@
+{
+  "name": "smtm-emma-server",
+  "version": "1.0.0",
+  "description": "Show Me The Money — Emma CDI job scraper",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "node-cron": "^4.2.1",
+    "playwright": "^1.44.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "web-push": "^3.6.7"
+  }
+}
