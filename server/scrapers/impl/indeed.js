@@ -1,108 +1,105 @@
-// Indeed FR — avec descriptions et salaires améliorés
+// Indeed FR — extraction via JSON embarqué dans la page (plus fiable que DOM)
+// Indeed injecte les données jobs dans window.mosaic.providerData
+
 async function scrape(context) {
   const page = await context.newPage()
   const jobs = []
 
   const searches = [
-    'https://fr.indeed.com/jobs?q=omnicanal+manager&l=Grenoble&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=chef+de+projet+digital&l=Grenoble+(38)&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=digital+project+manager&l=Grenoble&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=marketing+manager+digital&l=Grenoble&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=chef+de+projet+e-commerce&l=Grenoble&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=responsable+e-commerce&l=Grenoble&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=traffic+manager&l=Grenoble&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=responsable+omnicanal&l=Isere&sort=date&fromage=30',
-    // Full remote France
-    'https://fr.indeed.com/jobs?q=omnichannel+manager&l=France&sc=0kf%3Aattr%28DSQF7%29%3B&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=chef+de+projet+digital&l=France&sc=0kf%3Aattr%28DSQF7%29%3B&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=CRO+conversion+manager&l=France&sc=0kf%3Aattr%28DSQF7%29%3B&sort=date&fromage=30',
-    'https://fr.indeed.com/jobs?q=e-commerce+manager&l=France&sc=0kf%3Aattr%28DSQF7%29%3B&sort=date&fromage=30',
+    { q: 'chef+de+projet+digital',        l: 'Grenoble+(38)' },
+    { q: 'omnicanal+manager',             l: 'Grenoble' },
+    { q: 'marketing+manager+digital',     l: 'Grenoble' },
+    { q: 'responsable+ecommerce',         l: 'Isere' },
+    { q: 'digital+project+manager',       l: 'Grenoble' },
+    { q: 'cro+manager',                   l: 'Grenoble' },
+    { q: 'conversion+manager',            l: 'Grenoble' },
+    { q: 'digital+experience+manager',    l: 'Grenoble' },
+    { q: 'ecommerce+manager',             l: 'Grenoble' },
+    { q: 'omnichannel+manager',           l: 'France',    remote: true },
+    { q: 'chef+de+projet+digital',        l: 'France',    remote: true },
+    { q: 'ecommerce+manager',             l: 'France',    remote: true },
+    { q: 'CRO+manager',                   l: 'France',    remote: true },
+    { q: 'conversion+manager',            l: 'France',    remote: true },
+    { q: 'digital+experience+manager',    l: 'France',    remote: true },
   ]
 
-  for (const url of searches) {
+  for (const s of searches) {
     try {
+      const remoteParam = s.remote ? '&sc=0kf%3Aattr%28DSQF7%29%3B' : ''
+      const url = `https://fr.indeed.com/jobs?q=${s.q}&l=${encodeURIComponent(s.l)}&sort=date&fromage=30${remoteParam}`
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 })
-      await page.waitForTimeout(2000)
-      await page.click('button#onetrust-accept-btn-handler, button:has-text("Accepter")').catch(() => {})
+      await page.waitForTimeout(2500)
+      await page.click('#onetrust-accept-btn-handler, button:has-text("Accepter")').catch(() => {})
       await page.waitForTimeout(500)
 
       const found = await page.evaluate(() => {
-        const results = []
-
-        // JSON-LD sur la page de liste (parfois présent)
-        const jsonLdData = {}
-        document.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
-          try {
-            const d = JSON.parse(s.textContent)
-            const items = Array.isArray(d) ? d : [d]
-            items.forEach(item => {
-              if (item['@type'] !== 'JobPosting') return
-              const bs = item.baseSalary?.value
-              if (bs) {
-                let salary = ''
-                if (bs.minValue && bs.maxValue) salary = `${Math.round(bs.minValue)}–${Math.round(bs.maxValue)}€/${bs.unitText === 'YEAR' ? 'an' : 'mois'}`
-                else if (bs.value) salary = `${Math.round(bs.value)}€/${bs.unitText === 'YEAR' ? 'an' : 'mois'}`
-                if (salary && item.url) jsonLdData[item.url] = { salary, description: item.description?.replace(/<[^>]+>/g, '').slice(0, 400) || '' }
+        // 1. Tenter d'extraire depuis le JSON embarqué (plus fiable)
+        const scripts = document.querySelectorAll('script')
+        let jsonJobs = null
+        for (const s of scripts) {
+          const txt = s.textContent || ''
+          if (txt.includes('mosaic-provider-jobcards') && txt.includes('"results"')) {
+            try {
+              const match = txt.match(/window\.mosaic\.providerData\["mosaic-provider-jobcards"\]=({[\s\S]*?});/)
+              if (match) {
+                const data = JSON.parse(match[1])
+                jsonJobs = data?.metaData?.mosaicProviderJobCardsModel?.results || data?.results || null
               }
-            })
-          } catch {}
-        })
+            } catch {}
+            if (jsonJobs) break
+          }
+        }
 
-        const cards = document.querySelectorAll('.cardOutline, .tapItem, [data-jk]')
-        cards.forEach(card => {
+        if (jsonJobs && jsonJobs.length > 0) {
+          return jsonJobs.map(j => {
+            const loc = j.jobLocationModel?.displayLocation || j.formattedLocation || ''
+            const salary = j.estimatedSalary
+              ? `${j.estimatedSalary.min || '?'}–${j.estimatedSalary.max || '?'}€/${j.estimatedSalary.type === 'YEARLY' ? 'an' : 'mois'}`
+              : j.salarySnippet?.text || ''
+            return {
+              title: j.normTitle || j.title || '',
+              company: j.company || '',
+              location: loc,
+              salary,
+              description: (j.snippet || '').replace(/<[^>]+>/g, '').slice(0, 400),
+              url: j.isSponsoredJob !== undefined && j.jobkey
+                ? `https://fr.indeed.com/viewjob?jk=${j.jobkey}`
+                : '',
+              remote: (loc.toLowerCase().includes('télétravail') || loc.toLowerCase().includes('remote')) ? 1 : 0,
+              posted_at: j.pubDate ? new Date(j.pubDate).toISOString() : '',
+              contract_type: 'CDI',
+            }
+          }).filter(j => j.title && j.url)
+        }
+
+        // 2. Fallback DOM si le JSON n'est pas disponible
+        const results = []
+        document.querySelectorAll('[data-jk]').forEach(card => {
           const jk = card.getAttribute('data-jk') || card.querySelector('[data-jk]')?.getAttribute('data-jk')
           if (!jk) return
-
-          const titleEl = card.querySelector('[id^="jobTitle"], h2 a, [data-testid="job-title"]')
-          const companyEl = card.querySelector('[data-testid="company-name"], [class*="companyName"]')
-          const locationEl = card.querySelector('[data-testid="text-location"], [class*="companyLocation"]')
-          const dateEl = card.querySelector('[class*="date"]')
-
-          // Tous les sélecteurs salary possibles
-          let salaryText = ''
-          const salarySelectors = [
-            '[class*="salary-snippet"]', '[data-testid*="salary"]',
-            '[class*="salarySnippet"]', '[class*="estimated-salary"]',
-            'div[class*="attribute_snippet"]', '[class*="remuneration"]',
-            '[class*="metadata"] svg[aria-label*="alaire"] + span',
-          ]
-          for (const sel of salarySelectors) {
-            const el = card.querySelector(sel)
-            if (el?.textContent?.trim()) { salaryText = el.textContent.trim(); break }
-          }
-          // Scan metadata pour €
-          if (!salaryText) {
-            card.querySelectorAll('[class*="metadata"], [class*="attribute"]').forEach(el => {
-              const t = el.textContent.trim()
-              if (/\d.*€|€.*\d/i.test(t) && t.length < 80) salaryText = t
-            })
-          }
-
-          // Description snippet
-          const snippetEl = card.querySelector('[class*="snippet"], [data-testid="snippet"], .job-snippet')
-          const snippet = snippetEl?.textContent?.trim() || ''
-
+          const titleEl = card.querySelector('[id^="jobTitle"], h2 a')
+          const companyEl = card.querySelector('[data-testid="company-name"]')
+          const locationEl = card.querySelector('[data-testid="text-location"]')
+          const salaryEl = card.querySelector('[class*="salary"], [data-testid*="salary"]')
+          const snippetEl = card.querySelector('[class*="snippet"]')
           if (!titleEl) return
           const loc = locationEl?.textContent?.trim() || ''
-          const jobUrl = `https://fr.indeed.com/viewjob?jk=${jk}`
-          const ldInfo = jsonLdData[jobUrl] || {}
-
           results.push({
             title: titleEl.textContent.trim(),
             company: companyEl?.textContent?.trim() || '',
             location: loc,
-            salary: salaryText || ldInfo.salary || '',
-            description: snippet || ldInfo.description || '',
-            url: jobUrl,
+            salary: salaryEl?.textContent?.trim() || '',
+            description: snippetEl?.textContent?.trim() || '',
+            url: `https://fr.indeed.com/viewjob?jk=${jk}`,
             remote: loc.toLowerCase().includes('télétravail') || loc.toLowerCase().includes('remote') ? 1 : 0,
-            posted_at: dateEl?.textContent?.trim() || '',
+            posted_at: '',
             contract_type: 'CDI',
           })
         })
         return results
       })
 
-      jobs.push(...found.filter(j => j.title && j.url))
+      jobs.push(...(found || []).filter(j => j.title && j.url))
     } catch (err) {
       console.error('[indeed]', err.message)
     }

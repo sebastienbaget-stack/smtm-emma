@@ -18,7 +18,6 @@ const scrapers = {
   cadremploi:   require('./impl/cadremploi'),
   cadresonline: require('./impl/cadresonline'),
   hellowork:    require('./impl/hellowork'),
-  glassdoor:    require('./impl/glassdoor'),
   monster:      require('./impl/monster'),
   jobteaser:    require('./impl/jobteaser'),
   figaro:       require('./impl/figaro'),

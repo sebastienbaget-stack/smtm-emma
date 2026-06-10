@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { getJobs, updateJobStatus, getStats } = require('../db/database')
+const { generateSummary } = require('../summary')
 
 router.get('/', (req, res) => {
   try {
@@ -22,6 +23,19 @@ router.get('/', (req, res) => {
 router.get('/stats', (req, res) => {
   try {
     res.json(getStats())
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Résumé IA d'une offre (généré à la demande, mis en cache)
+router.get('/:id/summary', async (req, res) => {
+  try {
+    const jobs = getJobs({})
+    const job = jobs.find(j => j.id === Number(req.params.id))
+    if (!job) return res.status(404).json({ error: 'Offre introuvable' })
+    const summary = await generateSummary(job)
+    res.json({ summary })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

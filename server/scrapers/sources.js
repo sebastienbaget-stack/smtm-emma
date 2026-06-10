@@ -9,7 +9,6 @@ const SOURCES = [
   { id: 'cadremploi',    name: 'Cadremploi',            priority: 2 },
   { id: 'cadresonline',  name: 'Cadresonline',          priority: 2 },
   { id: 'hellowork',     name: 'HelloWork',             priority: 2 },
-  { id: 'glassdoor',     name: 'Glassdoor',             priority: 2 },
   // Priority 3 — Job boards complémentaires
   { id: 'monster',       name: 'Monster',               priority: 3 },
   { id: 'jobteaser',     name: 'JobTeaser',             priority: 3 },

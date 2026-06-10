@@ -66,12 +66,19 @@ const JOB_KEYWORDS = [
   'digital manager',
   'e-commerce manager',
   'ecommerce manager',
-  'traffic manager',
+  // CRO / Conversion
+  'cro manager', 'cro specialist', 'cro analyst',
+  'conversion manager', 'conversion rate optimization',
+  'conversion rate manager',
+  // Digital Experience
+  'digital experience manager', 'digital experience director',
+  'responsable expérience digitale', 'responsable experience digitale',
+  'digital experience lead',
+  // Acquisition / Growth
   'acquisition manager',
-  'cro manager',
-  'conversion rate',
   'growth manager',
   'growth hacker',
+  // Direction
   'head of digital',
   'head of e-commerce',
   'directeur digital',
@@ -129,49 +136,44 @@ const FAR_CITIES = [
   'bayeux', 'cherbourg', 'laval', 'le mans', 'alençon',
 ]
 
+// Sources 100% remote par définition → toujours garder sans vérif geo
+const REMOTE_ONLY_SOURCES = new Set([
+  'remotive', 'weworkremotely', 'jobgether', 'himalayas', 'euremotejobs',
+])
+
+// Toute mention de télétravail/remote dans la localisation (même partiel)
+const ANY_REMOTE_KEYWORDS = [
+  'remote', 'télétravail', 'teletravail', 'hybride', 'hybrid',
+  'distanciel', 'à distance', 'a distance',
+]
+
 function isLocationOk(job) {
+  // Sources remote-only → toujours OK
+  if (REMOTE_ONLY_SOURCES.has(job.source)) return true
+
   const loc = (job.location || '').toLowerCase()
 
-  // Localisation vide → garder (on ne peut pas décider)
-  if (!loc || loc.trim() === '' || loc === 'france' || loc === 'fr' || loc === 'france entière') {
-    return true
-  }
-
-  // Zone Grenoble → toujours OK (remote ou pas)
+  // Zone Grenoble → toujours OK (tout mode de travail accepté)
   if (GRENOBLE_AREA.some(k => loc.includes(k))) return true
 
-  // Full remote explicite → OK même hors Grenoble
-  if (FULL_REMOTE_KEYWORDS.some(k => loc.includes(k))) return true
+  // La localisation mentionne explicitement le télétravail (même partiel) → OK
+  // Emma verra les conditions et décidera elle-même
+  if (ANY_REMOTE_KEYWORDS.some(k => loc.includes(k))) return true
 
-  // job.remote=1 positionné par le scraper, mais vérifier que ce n'est pas partiel
-  if (job.remote === 1) {
-    // Si la localisation contient "partiel" ou "hybride", c'est pas full remote
-    if (PARTIAL_REMOTE_KEYWORDS.some(k => loc.includes(k))) return false
-    // Si c'est une ville hors Grenoble, vérifier que c'est vraiment remote
-    if (FAR_CITIES.some(k => loc.includes(k))) {
-      // remote=1 sur une ville connue = suspect, rejeter
-      return false
-    }
-    return true
-  }
+  // job.remote=1 sans mention dans le texte (flag posé par le scraper) → OK
+  // sauf si c'est une ville lointaine connue
+  if (job.remote === 1 && !FAR_CITIES.some(k => loc.includes(k))) return true
 
-  // Télétravail dans la localisation mais pas forcément full
-  if (loc.includes('télétravail') || loc.includes('teletravail') || loc.includes('remote')) {
-    // Si c'est partiel sur une ville lointaine → rejeter
-    if (PARTIAL_REMOTE_KEYWORDS.some(k => loc.includes(k))) {
-      if (FAR_CITIES.some(k => loc.includes(k))) return false
-    }
-    // Si c'est full remote sans ville connue → OK
-    if (!FAR_CITIES.some(k => loc.includes(k))) return true
-    // Télétravail sur ville lointaine : accepter seulement si full
-    return FULL_REMOTE_KEYWORDS.some(k => loc.includes(k))
-  }
+  // ── Règle centrale : hors Grenoble + pas de mention télétravail → REJETER ──
+  // Si localisation vide ou inconnue → REJETER (on ne peut pas confirmer Grenoble ni remote)
+  // Sauf si source réputée couvrir la région
+  if (!loc || loc.trim() === '' || loc === 'france' || loc === 'fr') return false
 
-  // Grande ville hors zone → rejeter
+  // Grande ville connue hors zone → rejeter
   if (FAR_CITIES.some(k => loc.includes(k))) return false
 
-  // Localisation inconnue/ambiguë → garder par défaut
-  return true
+  // Localisation inconnue non-vide (ex: "Île-de-France" sans remote) → rejeter
+  return false
 }
 
 // ── Mots-clés NÉGATIFS dans le titre → exclure l'offre ──────────────────────
@@ -180,7 +182,8 @@ const EXCLUDE_IN_TITLE = [
   'alternance', 'alternant', 'alternante', 'apprentissage', 'apprenti', 'apprentie',
   'stage', 'stagiaire', 'contrat pro', 'professionnalisation',
   ' cdd', '(cdd)', '- cdd', 'en cdd',
-  // Catégories de postes hors scope
+  // Postes hors scope
+  'traffic manager',  // ← exclu explicitement
   'conseiller', 'conseillère',
   'vendeur', 'vendeuse',
   'commercial', 'commerciale',
@@ -213,6 +216,58 @@ const EXCLUDE_TITLE_STARTS = [
   'graphiste',
   'chargé de', 'chargée de',   // souvent trop junior
 ]
+
+// ── Score de pertinence (0–100) ───────────────────────────────────────────────
+// Plus l'intitulé du poste correspond exactement au profil, plus le score est élevé.
+const SCORE_WEIGHTS = [
+  // Correspondances exactes au profil Emma = scores élevés
+  { kw: 'omnicanal manager',              score: 100 },
+  { kw: 'omnichannel manager',            score: 100 },
+  { kw: 'responsable omnicanal',          score: 95 },
+  { kw: 'chef de projet digital',         score: 90 },
+  { kw: 'cheffe de projet digital',       score: 90 },
+  { kw: 'digital project manager',        score: 88 },
+  { kw: 'e-commerce manager',             score: 85 },
+  { kw: 'ecommerce manager',              score: 85 },
+  { kw: 'responsable e-commerce',         score: 82 },
+  { kw: 'responsable ecommerce',          score: 82 },
+  { kw: 'chef de projet e-commerce',      score: 80 },
+  { kw: 'chef de projet ecommerce',       score: 80 },
+  { kw: 'digital experience manager',     score: 80 },
+  { kw: 'responsable expérience digitale',score: 78 },
+  { kw: 'marketing manager',              score: 75 },
+  { kw: 'responsable marketing digital',  score: 75 },
+  { kw: 'conversion manager',             score: 75 },
+  { kw: 'cro manager',                    score: 74 },
+  { kw: 'conversion rate',                score: 70 },
+  { kw: 'head of digital',                score: 70 },
+  { kw: 'head of e-commerce',             score: 70 },
+  { kw: 'digital manager',                score: 65 },
+  { kw: 'growth manager',                 score: 60 },
+  { kw: 'acquisition manager',            score: 55 },
+  { kw: 'directeur digital',              score: 55 },
+  { kw: 'directeur e-commerce',           score: 55 },
+  // Mots-clés simples (fallback)
+  { kw: 'omnicanal',                      score: 50 },
+  { kw: 'omnichannel',                    score: 50 },
+  { kw: 'digital',                        score: 20 },
+  { kw: 'e-commerce',                     score: 20 },
+  { kw: 'ecommerce',                      score: 20 },
+]
+
+function computeScore(job) {
+  const t = (job.title || '').toLowerCase()
+  let score = 0
+  for (const { kw, score: s } of SCORE_WEIGHTS) {
+    if (t.includes(kw)) { score = Math.max(score, s) }
+  }
+  // Bonus: salaire connu ≥ 45k
+  if (job.salary && !job.salary_missing) score += 5
+  // Bonus: localisation Grenoble (préférence locale)
+  const loc = (job.location || '').toLowerCase()
+  if (GRENOBLE_AREA.some(k => loc.includes(k))) score += 3
+  return score
+}
 
 function matchesJobKeywords(title) {
   if (!title) return false
@@ -285,11 +340,15 @@ function getJobs(filters = {}) {
     })
   }
 
-  return [...jobs].sort((a, b) => {
-    const da = a.posted_at ? new Date(a.posted_at) : new Date(a.scraped_at)
-    const db2 = b.posted_at ? new Date(b.posted_at) : new Date(b.scraped_at)
-    return db2 - da
-  })
+  // Trier par score puis par date
+  return [...jobs]
+    .map(j => ({ ...j, _score: computeScore(j) }))
+    .sort((a, b) => {
+      if (b._score !== a._score) return b._score - a._score
+      const da = a.posted_at ? new Date(a.posted_at) : new Date(a.scraped_at)
+      const db2 = b.posted_at ? new Date(b.posted_at) : new Date(b.scraped_at)
+      return db2 - da
+    })
 }
 
 function upsertJob(job) {

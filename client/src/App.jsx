@@ -167,6 +167,18 @@ function StatsRow({ stats, newCount }) {
 }
 
 // ─── Job Card ─────────────────────────────────────────────────────────────────
+function ScoreBadge({ score }) {
+  if (!score || score < 60) return null
+  const { color, label } = score >= 90 ? { color: 'bg-violet-500/20 text-violet-300 border-violet-500/30', label: '★★★' }
+    : score >= 75 ? { color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', label: '★★' }
+    : { color: 'bg-zinc-700 text-zinc-400 border-zinc-600', label: '★' }
+  return (
+    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full border leading-none mt-0.5 ${color}`}>
+      {label}
+    </span>
+  )
+}
+
 function JobCard({ job, onClick }) {
   const st = STATUS[job.status] || STATUS.new
   const date = formatDate(job.posted_at || job.scraped_at)
@@ -174,6 +186,7 @@ function JobCard({ job, onClick }) {
     <button onClick={() => onClick(job)} className="w-full text-left bg-zinc-900 border border-zinc-800 rounded-2xl p-4 active:bg-zinc-800 transition-colors">
       <div className="flex items-start gap-2 mb-1">
         <span className="font-semibold text-white leading-snug flex-1 text-base">{job.title}</span>
+        <ScoreBadge score={job._score} />
         {job.is_new === 1 && <span className="shrink-0 bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none mt-1">NEW</span>}
       </div>
       {job.company && <p className="text-sm text-zinc-400 mb-2.5">{job.company}</p>}
@@ -228,6 +241,20 @@ function JobDetail({ job, onBack, onStatusChange }) {
   const [letter, setLetter] = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [summary, setSummary] = useState(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+
+  // Charger le résumé IA dès l'ouverture de la fiche
+  useEffect(() => {
+    if (!job?.id) return
+    setSummary(null)
+    setSummaryLoading(true)
+    fetch(`/api/jobs/${job.id}/summary`)
+      .then(r => r.json())
+      .then(d => { if (d.summary) setSummary(d.summary) })
+      .catch(() => {})
+      .finally(() => setSummaryLoading(false))
+  }, [job?.id])
 
   const generate = async () => {
     setLoading(true)
@@ -259,6 +286,25 @@ function JobDetail({ job, onBack, onStatusChange }) {
             <h1 className="text-2xl font-bold leading-tight mb-1">{job.title}</h1>
             {job.company && <p className="text-zinc-400 text-base">{job.company}</p>}
           </div>
+
+          {/* Résumé IA */}
+          {(summaryLoading || summary) && (
+            <div className="bg-violet-500/8 border border-violet-500/20 rounded-2xl p-4">
+              {summaryLoading ? (
+                <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Résumé en cours…</span>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-violet-400/70 font-semibold uppercase tracking-wider mb-2">Résumé IA</p>
+                  {summary.split('\n').filter(l => l.trim()).map((line, i) => (
+                    <p key={i} className="text-sm text-zinc-300 leading-relaxed">{line}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Tags */}
           <div className="flex flex-wrap gap-2">
@@ -308,7 +354,7 @@ function JobDetail({ job, onBack, onStatusChange }) {
             href={job.url}
             target="_blank"
             rel="noreferrer"
-            className="w-full flex items-center justify-center gap-2 bg-zinc-100 active:bg-zinc-300 text-black font-semibold py-4 rounded-2xl text-base"
+            className="w-full flex items-center justify-center gap-2 bg-violet-600 active:bg-violet-700 text-white font-semibold py-4 rounded-2xl text-base"
           >
             <ExternalLink className="w-4 h-4" />
             Voir l'annonce et postuler
@@ -316,7 +362,7 @@ function JobDetail({ job, onBack, onStatusChange }) {
 
           {/* Lettre */}
           <button onClick={generate} disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-violet-600 active:bg-violet-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl text-base">
+            className="w-full flex items-center justify-center gap-2 bg-zinc-100 active:bg-zinc-300 text-black disabled:opacity-50 font-semibold py-4 rounded-2xl text-base">
             <Send className="w-4 h-4" />
             {loading ? 'Génération…' : 'Générer ma lettre de motivation'}
           </button>
